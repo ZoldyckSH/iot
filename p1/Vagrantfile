@@ -1,0 +1,47 @@
+FIRST_NAME_MACHINE = 'erwepifaS'
+IP_FIRST_MACHINE = '192.168.42.110'
+
+LAST_NAME_MACHINE = 'erwepifaSW'
+IP_LAST_MACHINE = '192.168.42.111'
+
+MEM = 1024
+CPU = 1
+CENTOS = "generic/centos8"
+BOX_URL = "https://app.vagrantup.com/generic/boxes/centos8/versions/3.6.12/providers/virtualbox.box"
+
+Vagrant.configure("2") do |config|
+    config.vm.box = BOX
+	config.vm.box_url = BOX_URL
+    config.vm.define FIRST_NAME_MACHINE do |server|
+        server.vm.hostname = FIRST_NAME_MACHINE
+        server.vm.network "private_network", ip: IP_FIRST_MACHINE
+        server.vm.provider "virtualbox" do |v|
+            v.name = FIRST_NAME_MACHINE
+            v.memory = MEM
+            v.cpus = CPU
+        end
+        server.vm.provision "shell", inline: <<-SHELL
+        curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--flannel-iface eth1" sh -s -
+        echo $(sudo cat /var/lib/rancher/k3s/server/node-token) > /vagrant/.token
+        SHELL
+        server.trigger.after :up do |trigger|
+            trigger.run = {inline: "vagrant scp 192.168.42.110:/vagrant/.token ."}
+        end
+    end
+
+    config.vm.define LAST_NAME_MACHINE do |worker|
+        worker.vm.hostname = LAST_NAME_MACHINE
+        worker.vm.network "private_network", ip: IP_LAST_MACHINE
+        worker.vm.provider "virtualbox" do |v|
+            v.name = LAST_NAME_MACHINE
+            v.memory = 1024
+            v.cpus = 1
+        end
+        worker.vm.provision "shell", inline: <<-SHELL
+        curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" K3S_URL=https://192.168.42.110:6443 K3S_TOKEN=$(cat /vagrant/.token) INSTALL_K3S_EXEC="--flannel-iface eth1" sh -s -
+        SHELL
+        worker.trigger.after :up do |trigger|
+            trigger.run = {inline: "rm .token"}
+        end
+    end  
+end

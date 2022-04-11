@@ -1,0 +1,35 @@
+NAME_MACHINE = 'erwepifaS'
+IP_MACHINE = '192.168.42.110'
+
+MEM = 1024
+CPU = 1
+CENTOS = "generic/centos8"
+BOX_URL = "https://app.vagrantup.com/generic/boxes/centos8/versions/3.6.12/providers/virtualbox.box"
+
+Vagrant.configure(2) do |config|
+	config.vm.box = CENTOS
+	config.vm.box_url = BOX_URL
+	config.vm.synced_folder ".", "/vagrant"
+	config.vm.define NAME_MACHINE do |control|
+		control.vm.hostname = NAME_MACHINE
+		control.vm.network "private_network", ip: IP_MACHINE
+		control.vm.provider provider do |v|
+			v.customize ["modifyvm", :id, "--name", "erwepifaS"]
+			v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+			v.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+			v.cpus = CPU
+			v.memory = MEM
+			v.name = NAME_MACHINE
+		end
+		control.vm.provision "shell", inline: <<-SHELL
+			systemctl disable firewalld --now
+			export INSTALL_K3S_EXEC="--node-ip=#{IP_MACHINE} --flannel-iface=eth1 --tls-san #{IP_MACHINE} --bind-address=#{IP_MACHINE} --advertise-address=#{IP_MACHINE} --node-external-ip=#{IP_MACHINE} --write-kubeconfig-mode 644"
+			curl -sfL https://get.k3s.io |  sh -
+			echo "alias k='kubectl'" >> /etc/profile.d/00-aliases.sh
+			kubectl apply -f /vagrant/confs/app-one.yaml
+			kubectl apply -f /vagrant/confs/app-two.yaml
+			kubectl apply -f /vagrant/confs/app-three.yaml
+			kubectl apply -f /vagrant/confs/ingress.yaml
+		SHELL
+	end
+end
