@@ -14,4 +14,4 @@ cp examples/values-minikube-minimum.yaml ./
 helm repo add gitlab https://charts.gitlab.io/
 helm repo update
 helm dependency update -n gitlab
-helm upgrade --install gitlab -f values-minikube-minimum.yaml . --timeout 600s --set global.hosts.domain=gitlab.bjesse --set global.edition=ce --set global.hosts.externalIP=192.168.42.110 -n gitlab
+helm upgrade --install gitlab -f values-minikube-minimum.yaml . --timeout 600s --set global.hosts.domain=gitlab.erwepifa --set global.edition=ce --set global.hosts.externalIP=192.168.42.110 -n gitlab
